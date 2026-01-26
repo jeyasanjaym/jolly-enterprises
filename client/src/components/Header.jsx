@@ -118,6 +118,7 @@ const Header = () => {
                 )}
               </li>
             ))}
+            <li><Link to="/about" className="hover:text-gray-600">About Us</Link></li>
             <li><Link to="/contact" className="hover:text-gray-600">Contact</Link></li>
             <li><Link to="/track-order" className="hover:text-gray-600">Track Your Order</Link></li>
           </ul>
@@ -146,6 +147,7 @@ const Header = () => {
                   </Link>
                 </li>
               ))}
+              <li><Link to="/about" onClick={() => setIsMenuOpen(false)}>About Us</Link></li>
               <li><Link to="/contact" onClick={() => setIsMenuOpen(false)}>Contact</Link></li>
               <li><Link to="/track-order" onClick={() => setIsMenuOpen(false)}>Track Your Order</Link></li>
               {!isAuthenticated && (

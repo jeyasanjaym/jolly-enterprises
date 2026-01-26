@@ -11,6 +11,7 @@ import Cart from './pages/Cart'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Contact from './pages/Contact'
+import About from './pages/About'
 import TrackOrder from './pages/TrackOrder'
 import MyOrders from './pages/MyOrders'
 import Checkout from './pages/Checkout'
@@ -35,6 +36,7 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/about" element={<About />} />
                 <Route path="/track-order" element={<TrackOrder />} />
                 <Route path="/my-orders" element={<MyOrders />} />
                 <Route path="/checkout" element={<Checkout />} />
