@@ -1,6 +1,8 @@
 import Order from '../models/Order.js';
 import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
+import User from '../models/User.js';
+import { saveBillToFile } from '../utils/billGenerator.js';
 
 export const createOrder = async (req, res) => {
   try {
@@ -36,9 +38,46 @@ export const createOrder = async (req, res) => {
       totalPrice,
     });
 
+    // Decrease product stock / size-wise stock
+    for (const item of cart.items) {
+      const product = await Product.findById(item.product._id);
+      if (!product) continue;
+
+      // Handle size-wise stock if configured
+      if (product.sizeStock && product.sizeStock.length > 0 && item.size) {
+        const entry = product.sizeStock.find((s) => s.size === item.size);
+        if (entry) {
+          entry.stock = Math.max(0, (entry.stock || 0) - item.quantity);
+        }
+        // Recalculate total stock and inStock flag in pre-save hook
+      } else if (typeof product.stock === 'number') {
+        product.stock = Math.max(0, product.stock - item.quantity);
+        product.inStock = product.stock > 0;
+      }
+
+      await product.save();
+    }
+
     // Clear cart after order creation
     cart.items = [];
     await cart.save();
+
+    // Generate bill for the order
+    try {
+      const user = await User.findById(req.user._id);
+      const billUrl = await saveBillToFile(order, user);
+      
+      // Update order with bill information
+      order.billGenerated = true;
+      order.billGeneratedAt = new Date();
+      order.billUrl = billUrl;
+      await order.save();
+      
+      console.log('Bill generated successfully:', billUrl);
+    } catch (billError) {
+      console.error('Error generating bill:', billError);
+      // Don't fail the order if bill generation fails
+    }
 
     res.status(201).json(order);
   } catch (error) {
@@ -61,6 +100,81 @@ export const getUserOrders = async (req, res) => {
     res.json(orders);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+export const downloadOrderBill = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { token } = req.query;
+    
+    // Find the order
+    const order = await Order.findById(orderId).populate('user');
+    
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    // Check authentication - either via middleware or token parameter
+    let userId = req.user?._id;
+    
+    // If no user from middleware, try token from query
+    if (!userId && token) {
+      try {
+        const jwt = await import('jsonwebtoken');
+        const decoded = jwt.default.verify(token, process.env.JWT_SECRET);
+        userId = decoded.id;
+      } catch (tokenError) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+    }
+    
+    // Check if user owns the order or is admin
+    const userRole = req.user?.role;
+    if (order.user._id.toString() !== userId.toString() && userRole !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to download this bill' });
+    }
+    
+    // Generate bill if not already generated
+    let billUrl = order.billUrl;
+    if (!order.billGenerated || !billUrl) {
+      try {
+        const { saveBillToFile } = await import('../utils/billGenerator.js');
+        billUrl = await saveBillToFile(order, order.user);
+        order.billGenerated = true;
+        order.billGeneratedAt = new Date();
+        order.billUrl = billUrl;
+        await order.save();
+      } catch (billError) {
+        console.error('Error generating bill:', billError);
+        return res.status(500).json({ message: 'Failed to generate bill' });
+      }
+    }
+    
+    // Serve the bill file
+    const fs = await import('fs');
+    const path = await import('path');
+    const { fileURLToPath } = await import('url');
+    
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    
+    const billPath = path.join(__dirname, '..', billUrl);
+    
+    if (!fs.existsSync(billPath)) {
+      return res.status(404).json({ message: 'Bill file not found' });
+    }
+    
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="bill-${orderId}.pdf"; filename*=UTF-8''bill-${orderId}.pdf`)
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+    res.setHeader('Pragma', 'no-cache')
+    res.setHeader('Expires', '0')
+    res.sendFile(billPath);
+    
+  } catch (error) {
+    console.error('Error downloading bill:', error);
+    res.status(500).json({ message: 'Failed to download bill' });
   }
 };
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axios from 'axios'
-import { Package } from 'lucide-react'
+import { Package, Download } from 'lucide-react'
 import { getImageUrl } from '../utils/imageHelper'
 
 const MyOrders = () => {
@@ -24,6 +24,32 @@ const MyOrders = () => {
       console.error('Error fetching orders:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const downloadBill = async (orderId) => {
+    try {
+      // Get authentication token
+      const token = localStorage.getItem('token')
+      if (!token) {
+        alert('Please login to download bill')
+        return
+      }
+      
+      // Create download URL with token
+      const downloadUrl = `/api/orders/${orderId}/download-bill?token=${token}`
+      
+      // Create temporary link and trigger download
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = `bill-${orderId}.pdf`
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error('Error downloading bill:', error)
+      alert('Failed to download bill')
     }
   }
 
@@ -105,7 +131,14 @@ const MyOrders = () => {
               </div>
             </div>
 
-            <div className="border-t pt-4 mt-4 flex justify-end">
+            <div className="border-t pt-4 mt-4 flex justify-between items-center">
+              <button
+                onClick={() => downloadBill(order._id)}
+                className="btn-secondary flex items-center gap-2 text-sm"
+              >
+                <Download size={14} />
+                Download Bill
+              </button>
               <Link
                 to={`/track-order?id=${order._id}`}
                 className="text-black hover:underline font-semibold"

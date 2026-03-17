@@ -23,20 +23,30 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|gif|webp/;
+  // Allow common image formats
+  const allowedTypes = /jpeg|jpg|png|gif|webp|bmp|svg/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedTypes.test(file.mimetype);
 
-  if (mimetype && extname) {
+  // Also check if it's a valid image by mimetype
+  const imageMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml'];
+  const isValidImage = imageMimeTypes.includes(file.mimetype);
+
+  if ((mimetype && extname) || isValidImage) {
     return cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed!'));
+    console.log('File rejected:', {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      extname: path.extname(file.originalname).toLowerCase()
+    });
+    cb(new Error('Only image files (JPEG, JPG, PNG, GIF, WebP, BMP, SVG) are allowed!'));
   }
 };
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: fileFilter
 });
 

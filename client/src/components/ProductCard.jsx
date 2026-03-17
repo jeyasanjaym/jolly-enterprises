@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom'
-import { ShoppingCart } from 'lucide-react'
+import { Heart, ShoppingCart } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
+import { useWishlist } from '../context/WishlistContext'
 import { getImageUrl } from '../utils/imageHelper'
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart()
   const { isAuthenticated } = useAuth()
+  const { toggleWishlist, isInWishlist } = useWishlist()
 
   const handleAddToCart = async (e) => {
     e.preventDefault()
@@ -15,6 +17,11 @@ const ProductCard = ({ product }) => {
       return
     }
     await addToCart(product._id, 1)
+  }
+
+  const handleToggleWishlist = (e) => {
+    e.preventDefault()
+    toggleWishlist(product._id)
   }
 
   const discountPercentage = product.originalPrice
@@ -34,6 +41,17 @@ const ProductCard = ({ product }) => {
             -{discountPercentage}%
           </span>
         )}
+        <button
+          type="button"
+          onClick={handleToggleWishlist}
+          className="absolute top-2 left-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-800 hover:bg-black hover:text-white transition"
+          aria-label="Toggle wishlist"
+        >
+          <Heart
+            size={18}
+            className={isInWishlist(product._id) ? 'fill-current text-red-500' : ''}
+          />
+        </button>
         {!product.inStock && (
           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
             <span className="text-white font-semibold">Out of Stock</span>

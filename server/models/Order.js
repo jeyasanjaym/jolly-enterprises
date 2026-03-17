@@ -81,6 +81,14 @@ const orderSchema = new mongoose.Schema({
   trackingNumber: {
     type: String,
   },
+  billGenerated: {
+    type: Boolean,
+    default: false,
+  },
+  billGeneratedAt: Date,
+  billUrl: {
+    type: String,
+  },
 }, {
   timestamps: true,
 });

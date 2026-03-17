@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { ShoppingCart } from 'lucide-react'
+import { Heart, ShoppingCart } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
+import { useWishlist } from '../context/WishlistContext'
 import { getImageUrl } from '../utils/imageHelper'
 
 const ProductDetail = () => {
@@ -17,6 +18,7 @@ const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState(0)
   const { addToCart } = useCart()
   const { isAuthenticated } = useAuth()
+  const { toggleWishlist, isInWishlist } = useWishlist()
 
   useEffect(() => {
     fetchProduct()
@@ -31,6 +33,8 @@ const ProductDetail = () => {
       }
       if (res.data.colors && res.data.colors.length > 0) {
         setSelectedColor(res.data.colors[0])
+        // Assume color order matches image order (Blue -> first image, Red -> second, etc.)
+        setSelectedImage(0)
       }
     } catch (error) {
       console.error('Error fetching product:', error)
@@ -56,6 +60,11 @@ const ProductDetail = () => {
     } else {
       alert(result.message || 'Failed to add to cart')
     }
+  }
+
+  const handleToggleWishlist = () => {
+    if (!product) return
+    toggleWishlist(product._id)
   }
 
   if (loading) {
@@ -105,7 +114,20 @@ const ProductDetail = () => {
 
         {/* Product Info */}
         <div>
-          <h1 className="text-3xl font-bold mb-4">{product.name}</h1>
+          <div className="flex items-start justify-between gap-4 mb-2">
+            <h1 className="text-3xl font-bold">{product.name}</h1>
+            <button
+              type="button"
+              onClick={handleToggleWishlist}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 text-gray-800 hover:bg-black hover:text-white transition"
+              aria-label="Toggle wishlist"
+            >
+              <Heart
+                size={18}
+                className={isInWishlist(product._id) ? 'fill-current text-red-500' : ''}
+              />
+            </button>
+          </div>
           
           <div className="flex items-center gap-4 mb-4">
             <span className="text-3xl font-bold">₹{product.price}</span>
@@ -157,7 +179,13 @@ const ProductDetail = () => {
                 {product.colors.map((color) => (
                   <button
                     key={color}
-                    onClick={() => setSelectedColor(color)}
+                    onClick={() => {
+                      setSelectedColor(color)
+                      const idx = product.colors.indexOf(color)
+                      if (product.images && product.images[idx]) {
+                        setSelectedImage(idx)
+                      }
+                    }}
                     className={`px-4 py-2 border rounded-md ${
                       selectedColor === color
                         ? 'border-black bg-black text-white'

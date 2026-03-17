@@ -2,27 +2,32 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
 import ProductCard from '../components/ProductCard'
+import { getImageUrl } from '../utils/imageHelper'
 import {
   ShoppingBag,
   Truck,
   Shield,
   Star,
-  ChevronLeft,
-  ChevronRight,
   Sparkles,
   Gift,
   Tag,
   ArrowRight,
 } from 'lucide-react'
-import slide1 from '../../istockphoto-1201024668-612x612.jpg'
-import slide2 from '../../istockphoto-1300966679-612x612.jpg'
-import slide3 from '../../istockphoto-1308246727-612x612.jpg'
-import slide4 from '../../istockphoto-1409728562-612x612.jpg'
-import slide5 from '../../istockphoto-1453723844-612x612.jpg'
-import slide6 from '../../istockphoto-626856214-612x612.jpg'
-import slide7 from '../../istockphoto-653003428-612x612.jpg'
-import slide8 from '../../istockphoto-831656828-612x612.jpg'
-import slide9 from '../../pic1.jpg'
+
+// Default hero image for home page
+const defaultHeroImage = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=600&fit=crop'
+
+// Simple placeholder images for each category
+const categoryImages = {
+  'T-Shirt': 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300&h=200&fit=crop',
+  'Pant/Track': 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=300&h=200&fit=crop',
+  'Co-Ord Set': 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=300&h=200&fit=crop',
+  'Shirt': 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=300&h=200&fit=crop',
+  'Hoodies': 'https://images.unsplash.com/photo-1556821840-9a63fde16c8f?w=300&h=200&fit=crop',
+  'Shoes': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&h=200&fit=crop',
+  'Slipper': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&h=200&fit=crop',
+  'Perfume': 'https://images.unsplash.com/photo-1528740561696-85021de34420?w=300&h=200&fit=crop',
+}
 
 const festivalHighlights = [
   { id: 'diwali', name: 'Diwali', icon: '🪔', color: 'from-yellow-500 to-orange-500' },
@@ -35,7 +40,7 @@ const festivalHighlights = [
 
 const shopCategories = [
   { name: 'T-Shirt', slug: 'T-Shirt', icon: '👕' },
-  { name: 'Pant / Track', slug: 'Pant / Track', icon: '👖' },
+  { name: 'Pant/Track', slug: 'Pant/Track', icon: '👖' },
   { name: 'Co-Ord Set', slug: 'Co-Ord Set', icon: '👔' },
   { name: 'Shirt', slug: 'Shirt', icon: '🧥' },
   { name: 'Hoodies', slug: 'Hoodies', icon: '🧣' },
@@ -44,35 +49,29 @@ const shopCategories = [
   { name: 'Perfume', slug: 'Perfume', icon: '✨' },
 ]
 
-const heroSlides = [
-  { src: slide5, caption: 'Sharp formals for standout events.' },
-  { src: slide3, caption: 'Premium layering for every season.' },
-  { src: slide1, caption: 'Tailored fits with modern lines.' },
-  { src: slide6, caption: 'Statement outerwear, refined details.' },
-  { src: slide2, caption: 'Weekend-ready casual sophistication.' },
-  { src: slide4, caption: 'Elevated essentials, sleek silhouettes.' },
-  { src: slide7, caption: 'Comfort-first polos, premium fabrics.' },
-  { src: slide8, caption: 'Luxury knitwear for cooler days.' },
-  { src: slide9, caption: 'Curated looks from our latest drop.' },
+// Categories to showcase as scroll sections on home
+const showcaseCategories = [
+  { id: 'tshirt', apiCategory: 'T-Shirt', title: 'Shop by T-Shirt' },
+  { id: 'bottom', apiCategory: 'Pant/Track', title: 'Shop by Bottom Wear' },
+  { id: 'coord', apiCategory: 'Co-Ord Set', title: 'Shop by Co-Ord Set' },
+  { id: 'hoodies', apiCategory: 'Hoodies', title: 'Shop by Hoodies' },
+  { id: 'shirts', apiCategory: 'Shirt', title: 'Shop by Shirts' },
+  { id: 'shoes', apiCategory: 'Shoes', title: 'Shop by Shoes' },
+  { id: 'slipper', apiCategory: 'Slipper', title: 'Shop by Slipper' },
+  { id: 'perfume', apiCategory: 'Perfume', title: 'Shop by Perfume' },
 ]
 
 const Home = () => {
   const [newArrivals, setNewArrivals] = useState([])
   const [backInStock, setBackInStock] = useState([])
   const [featured, setFeatured] = useState([])
-  const [currentSlide, setCurrentSlide] = useState(0)
+  const [categoryProducts, setCategoryProducts] = useState({})
   const [loading, setLoading] = useState(true)
+  const [heroProduct, setHeroProduct] = useState(null)
 
   useEffect(() => {
     fetchProducts()
-  }, [])
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % heroSlides.length)
-    }, 4500)
-
-    return () => clearInterval(timer)
+    fetchShowcaseCategories()
   }, [])
 
   const fetchProducts = async () => {
@@ -86,6 +85,11 @@ const Home = () => {
       setNewArrivals(newArrivalsRes.data.products || [])
       setBackInStock(backInStockRes.data.products || [])
       setFeatured(featuredRes.data.products || [])
+      
+      // Set first featured product as hero if available
+      if (featuredRes.data.products && featuredRes.data.products.length > 0) {
+        setHeroProduct(featuredRes.data.products[0])
+      }
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {
@@ -93,113 +97,145 @@ const Home = () => {
     }
   }
 
+  const fetchShowcaseCategories = async () => {
+    try {
+      const responses = await Promise.all(
+        showcaseCategories.map((cfg) =>
+          axios.get('/api/products', {
+            params: { category: cfg.apiCategory, limit: 6 },
+          })
+        )
+      )
+
+      const map = {}
+      responses.forEach((res, index) => {
+        const products = res.data.products || []
+        console.log(`Category ${showcaseCategories[index].id} (${showcaseCategories[index].apiCategory}):`, products.length, 'products')
+        map[showcaseCategories[index].id] = products
+      })
+      setCategoryProducts(map)
+      console.log('Category products map:', map)
+    } catch (error) {
+      console.error('Error fetching showcase categories:', error)
+    }
+  }
+
   return (
     <div>
-      {/* Hero Section */}
-      <section className="bg-gray-900 text-white py-16">
-        <div className="container mx-auto px-4 grid gap-10 lg:grid-cols-2 items-center">
-          <div className="text-center lg:text-left space-y-5">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-300">
-              Welcome to
-            </p>
-            <h1 className="text-5xl font-bold leading-tight">
-              Jolly Enterprises
-            </h1>
-            <p className="text-xl text-gray-200 max-w-2xl leading-relaxed">
-              Premium clothing for every occasion — discover curated looks,
-              tailored fits, and elevated essentials. From sharp formals to
-              weekend casuals, we bring you quality fabrics and modern designs
-              that last.
-            </p>
-            <ul className="flex flex-wrap gap-x-6 gap-y-1 text-gray-300 text-sm">
-              <li>Curated styles</li>
-              <li>Premium fabrics</li>
-              <li>Fast delivery</li>
-              <li>5 stores in Coimbatore</li>
-            </ul>
-            <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
-              <Link to="/products" className="btn-primary inline-block">
-                Shop Now
-              </Link>
-              <Link to="/festival-offers" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border-2 border-white/50 text-white hover:bg-white/10 transition">
-                <Gift size={18} />
-                Festival Offers
-              </Link>
-              <span className="text-sm text-gray-400">
-                Handpicked styles updated weekly. Free delivery on orders above ₹2,000.
-              </span>
-            </div>
-          </div>
-
-          <div className="relative w-full">
-            <div className="relative overflow-hidden rounded-3xl shadow-2xl bg-gray-800 aspect-[4/3]">
-              {heroSlides.map((slide, index) => (
-                <div
-                  key={slide.src}
-                  className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-                    index === currentSlide ? 'opacity-100' : 'opacity-0'
-                  }`}
-                >
+      {/* Hero Section - inspired by 7Man layout */}
+      <section className="bg-[#f5eee4] py-10 md:py-16">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-stretch">
+            {/* Left: Hero image */}
+            <div className="lg:w-[34%]">
+              <div className="relative h-[420px] md:h-[520px] rounded-3xl overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 shadow-xl">
+                {heroProduct && heroProduct.images && heroProduct.images.length > 0 ? (
                   <img
-                    src={slide.src}
-                    alt={slide.caption}
+                    src={getImageUrl(heroProduct.images[0])}
+                    alt={heroProduct.name}
                     className="h-full w-full object-cover"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-gray-300">
-                        Premium Clothing
-                      </p>
-                      <p className="text-lg font-semibold">{slide.caption}</p>
+                ) : (
+                  <img
+                    src={defaultHeroImage}
+                    alt="Jolly Enterprises - Fashion Collection"
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                )}
+                <button
+                  type="button"
+                  className="absolute left-6 bottom-8 border border-black bg-white/80 text-xs tracking-[0.25em] uppercase px-6 py-2 hover:bg-black hover:text-white transition"
+                  onClick={() => window.scrollTo({ top: 600, behavior: 'smooth' })}
+                >
+                  Shop Now
+                </button>
+              </div>
+            </div>
+
+            {/* Center: Typography block */}
+            <div className="lg:w-[40%] flex flex-col justify-center text-center lg:text-left">
+              <p className="text-xs md:text-sm tracking-[0.35em] uppercase text-gray-500 mb-4">
+                Today Only
+              </p>
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif tracking-[0.16em] leading-tight text-gray-900">
+                {heroProduct ? heroProduct.name.split(' ').slice(0, 2).join(' ') : 'Street'}
+                <br />
+                {heroProduct ? heroProduct.name.split(' ').slice(2).join(' ') : 'Baggy Pant'}
+              </h1>
+              <p className="mt-6 text-sm md:text-base tracking-[0.3em] uppercase text-gray-500">
+                {heroProduct ? heroProduct.category : 'Exclusive Colors'}
+              </p>
+              <p className="mt-4 text-sm md:text-base text-gray-600 max-w-md mx-auto lg:mx-0">
+                {heroProduct ? heroProduct.description : 'Relaxed, straight–fit silhouettes crafted in soft fabrics for all–day comfort. Perfect for everyday street style and off–duty looks.'}
+              </p>
+
+              <div className="mt-8 flex flex-col sm:flex-row sm:items-center gap-4">
+                <Link
+                  to="/products?category=Pant%20/%20Track"
+                  className="inline-flex items-center justify-center border border-black px-8 py-3 text-xs md:text-sm tracking-[0.3em] uppercase hover:bg-black hover:text-white transition"
+                >
+                  Shop Now
+                </Link>
+                <Link
+                  to="/track-order"
+                  className="inline-flex items-center justify-center text-xs md:text-sm tracking-[0.25em] uppercase text-gray-600 hover:text-black"
+                >
+                  Track Your Order
+                </Link>
+              </div>
+
+              {/* Dots / slider hint */}
+              <div className="mt-10 flex items-center gap-2 justify-center lg:justify-start">
+                <span className="inline-block h-1.5 w-6 rounded-full bg-black" />
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-400" />
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-300" />
+              </div>
+            </div>
+
+            {/* Right: Stacked thumbnails */}
+            <div className="lg:w-[26%] flex lg:flex-col gap-4">
+              {featured.slice(0, 3).map((product, index) => (
+                <div
+                  key={product._id}
+                  className="flex-1 rounded-3xl overflow-hidden bg-gray-200 shadow-md"
+                >
+                  {product.images && product.images.length > 0 ? (
+                    <img
+                      src={getImageUrl(product.images[0])}
+                      alt={product.name}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                      <ShoppingBag size={40} className="text-gray-400" />
                     </div>
-                    <span className="text-xs bg-white/20 text-white px-3 py-1 rounded-full backdrop-blur">
-                      {index + 1}/{heroSlides.length}
-                    </span>
-                  </div>
+                  )}
                 </div>
               ))}
-
-              <button
-                type="button"
-                className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full backdrop-blur hover:bg-black/70 transition"
-                aria-label="Previous slide"
-                onClick={() =>
-                  setCurrentSlide(
-                    (prev) =>
-                      (prev - 1 + heroSlides.length) % heroSlides.length
-                  )
-                }
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full backdrop-blur hover:bg-black/70 transition"
-                aria-label="Next slide"
-                onClick={() =>
-                  setCurrentSlide((prev) => (prev + 1) % heroSlides.length)
-                }
-              >
-                <ChevronRight size={20} />
-              </button>
-
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
-                {heroSlides.map((_, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    className={`h-2.5 w-2.5 rounded-full transition ${
-                      index === currentSlide
-                        ? 'bg-white'
-                        : 'bg-white/40 hover:bg-white/70'
-                    }`}
-                    aria-label={`Go to slide ${index + 1}`}
-                    onClick={() => setCurrentSlide(index)}
-                  />
-                ))}
-              </div>
+              {featured.length === 0 && (
+                <>
+                  {[
+                    'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300&h=200&fit=crop',
+                    'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=300&h=200&fit=crop',
+                    'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=300&h=200&fit=crop'
+                  ].map((imageSrc, index) => (
+                    <div
+                      key={index}
+                      className="flex-1 rounded-3xl overflow-hidden bg-gray-200 shadow-md"
+                    >
+                      <img
+                        src={imageSrc}
+                        alt={`Fashion collection ${index + 1}`}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -246,6 +282,110 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Scroll sections: shop by each category - Always show sections */}
+      {showcaseCategories.map((cfg) => {
+        const products = categoryProducts[cfg.id] || []
+
+        return (
+          <section key={cfg.id} className="py-14 bg-white">
+            <div className="container mx-auto px-4">
+              <p className="text-center text-xs tracking-[0.35em] uppercase text-red-500 mb-2">
+                Find Your Style
+              </p>
+              <h2 className="text-center text-3xl md:text-4xl font-bold uppercase mb-8">
+                {cfg.title} ({products.length} products)
+              </h2>
+
+              {products.length === 0 ? (
+                // Empty state with simple placeholder image
+                <div className="text-center py-12">
+                  <div className="relative overflow-hidden rounded-2xl shadow-md mx-auto max-w-sm mb-6">
+                    <img
+                      src={categoryImages[cfg.apiCategory] || categoryImages['T-Shirt']}
+                      alt={`${cfg.apiCategory}`}
+                      className="h-48 w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+                      <div className="text-center text-white">
+                        <ShoppingBag size={40} className="mx-auto mb-2 opacity-80" />
+                        <p className="text-sm font-medium">
+                          {cfg.apiCategory}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                    No {cfg.apiCategory} products yet
+                  </h3>
+                  <p className="text-gray-500 mb-6">
+                    Add {cfg.apiCategory} products in admin panel to see them here
+                  </p>
+                  <Link
+                    to={`/category/${encodeURIComponent(cfg.apiCategory)}`}
+                    className="inline-flex items-center gap-2 px-6 py-3 border-2 border-gray-300 rounded-lg hover:border-black transition"
+                  >
+                    Browse {cfg.apiCategory}
+                    <ArrowRight size={16} />
+                  </Link>
+                </div>
+              ) : (
+                // Product gallery with horizontal scroll
+                <div className="relative">
+                  <div className="overflow-x-auto pb-4">
+                    <div className="flex gap-6 min-w-max">
+                      {products.slice(0, 8).map((product, idx) => (
+                        <Link
+                          key={product._id}
+                          to={`/product/${product._id}`}
+                          className="relative overflow-hidden rounded-3xl shadow-lg group flex-shrink-0 w-72"
+                        >
+                          {product.images && product.images.length > 0 ? (
+                            <img
+                              src={getImageUrl(product.images[0])}
+                              alt={product.name}
+                              className="h-80 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="h-80 w-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                              <ShoppingBag size={60} className="text-gray-400" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                          <div className="absolute bottom-6 left-6 right-6 text-white">
+                            <p className="text-xs uppercase tracking-[0.3em] mb-2">
+                              {idx === 0 ? 'Best Seller' : 'Shop Now'}
+                            </p>
+                            <h3 className="text-xl font-semibold leading-tight">
+                              {product.name}
+                            </h3>
+                            {product.price && (
+                              <p className="mt-1 text-sm">
+                                From <span className="font-semibold">₹{product.price}</span>
+                              </p>
+                            )}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* View all button */}
+                  <div className="text-center mt-8">
+                    <Link
+                      to={`/category/${encodeURIComponent(cfg.apiCategory)}`}
+                      className="inline-flex items-center gap-2 px-8 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition"
+                    >
+                      View All {cfg.apiCategory}
+                      <ArrowRight size={16} />
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )
+      })}
 
       {/* Festival Offers */}
       <section className="py-14 bg-gradient-to-b from-amber-50 to-white">

@@ -23,26 +23,36 @@ const AdminLogin = () => {
     setError('')
     setLoading(true)
 
+    console.log('Attempting admin login with:', formData.email)
     const result = await login(formData.email, formData.password)
     
     if (result.success) {
-      // Fetch user to check role
-      try {
-        const userRes = await axios.get('/api/auth/me')
-        if (userRes.data.role === 'admin') {
-          navigate('/admin/dashboard')
-        } else {
-          setError('Access denied. Admin privileges required.')
-          logout()
+      console.log('Login successful, checking admin role...')
+      // Wait a moment for the user state to be set
+      setTimeout(async () => {
+        try {
+          const userRes = await axios.get('/api/auth/me')
+          console.log('User data:', userRes.data)
+          if (userRes.data.role === 'admin') {
+            console.log('Admin role confirmed, redirecting to dashboard...')
+            navigate('/admin/dashboard')
+          } else {
+            console.log('Not an admin user:', userRes.data.role)
+            setError('Access denied. Admin privileges required.')
+            logout()
+          }
+        } catch (error) {
+          console.error('Error verifying admin access:', error)
+          setError('Error verifying admin access')
+        } finally {
+          setLoading(false)
         }
-      } catch (error) {
-        setError('Error verifying admin access')
-      }
+      }, 500)
     } else {
+      console.log('Login failed:', result.message)
       setError(result.message)
+      setLoading(false)
     }
-    
-    setLoading(false)
   }
 
   return (

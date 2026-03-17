@@ -16,6 +16,7 @@ const productSchema = new mongoose.Schema({
     enum: [
       'T-Shirt',
       'Pant/Track',
+      'Pant / Track',
       'Co-Ord Set',
       'Shirt',
       'Hoodies',
@@ -43,16 +44,37 @@ const productSchema = new mongoose.Schema({
     min: 0,
     max: 100,
   },
-  images: [{
-    type: String,
-  }],
-  sizes: [{
-    type: String,
-    enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '6', '7', '8', '9', '10', '11', '12'],
-  }],
-  colors: [{
-    type: String,
-  }],
+  images: [
+    {
+      type: String,
+    },
+  ],
+  // Simple list of sizes that are available (for filters / display)
+  sizes: [
+    {
+      type: String,
+      enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '6', '7', '8', '9', '10', '11', '12'],
+    },
+  ],
+  // Size-wise stock, e.g. { size: 'M', stock: 60 }
+  sizeStock: [
+    {
+      size: {
+        type: String,
+        enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '6', '7', '8', '9', '10', '11', '12'],
+      },
+      stock: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+    },
+  ],
+  colors: [
+    {
+      type: String,
+    },
+  ],
   stock: {
     type: Number,
     required: true,
@@ -89,10 +111,28 @@ const productSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// Calculate discount percentage
-productSchema.pre('save', function(next) {
+// Calculate discount percentage and aggregate stock from sizeStock if present
+productSchema.pre('save', function (next) {
   if (this.originalPrice && this.price) {
     this.discount = Math.round(((this.originalPrice - this.price) / this.originalPrice) * 100);
+  }
+
+  if (this.sizeStock && this.sizeStock.length > 0) {
+    const total = this.sizeStock.reduce((sum, entry) => sum + (entry.stock || 0), 0);
+    this.stock = total;
+    this.inStock = total > 0;
+  }
+
+  next();
+});
+
+// Pre-save middleware to normalize category names
+productSchema.pre('save', function(next) {
+  if (this.category) {
+    // Normalize Pant/Track variations
+    if (this.category === 'Pant / Track' || this.category === 'Pant/Track') {
+      this.category = 'Pant/Track';
+    }
   }
   next();
 });

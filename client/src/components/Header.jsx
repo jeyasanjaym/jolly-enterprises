@@ -13,7 +13,7 @@ const Header = () => {
 
   const categories = [
     { name: 'T-Shirt', subcategories: ['Five Sleeve T-Shirt', 'Full Sleeve T-Shirt', 'Short Sleeve T-Shirt', 'Foot Ball Jersey'] },
-    { name: 'Pant / Track', subcategories: ['Lycra Pant', 'Track Pant', 'Cargo Pant', 'Baggy Pant', 'Shorts'] },
+    { name: 'Pant/Track', subcategories: ['Lycra Pant', 'Track Pant', 'Cargo Pant', 'Baggy Pant', 'Shorts'] },
     { name: 'Co-Ord Set' },
     { name: 'Shirt', subcategories: ['Lycra Shirt', 'Cotton Shirt'] },
     { name: 'Hoodies' },
@@ -75,6 +75,12 @@ const Header = () => {
               </Link>
             )}
 
+            {/* Liked / Wishlist */}
+            <Link to="/wishlist" className="relative hidden sm:inline-flex">
+              <Heart size={22} />
+            </Link>
+
+            {/* Cart */}
             <Link to="/cart" className="relative">
               <ShoppingCart size={24} />
               {getCartItemCount() > 0 && (
@@ -99,7 +105,7 @@ const Header = () => {
             <li><Link to="/" className="hover:text-gray-600">Home</Link></li>
             {categories.map((cat) => (
               <li key={cat.name} className="relative group">
-                <Link to={`/category/${cat.name}`} className="hover:text-gray-600">
+                <Link to={`/category/${encodeURIComponent(cat.name)}`} className="hover:text-gray-600">
                   {cat.name}
                 </Link>
                 {cat.subcategories && (
@@ -107,7 +113,7 @@ const Header = () => {
                     {cat.subcategories.map((sub) => (
                       <li key={sub}>
                         <Link
-                          to={`/category/${cat.name}?subcategory=${sub}`}
+                          to={`/category/${encodeURIComponent(cat.name)}?subcategory=${encodeURIComponent(sub)}`}
                           className="block px-4 py-2 hover:bg-gray-100"
                         >
                           {sub}
@@ -121,6 +127,9 @@ const Header = () => {
             <li><Link to="/about" className="hover:text-gray-600">About Us</Link></li>
             <li><Link to="/festival-offers" className="hover:text-gray-600">Festival Offers</Link></li>
             <li><Link to="/contact" className="hover:text-gray-600">Contact</Link></li>
+            {isAuthenticated && user?.role === 'admin' && (
+              <li><Link to="/admin/dashboard" className="hover:text-gray-600 font-semibold text-black">Admin</Link></li>
+            )}
             <li><Link to="/track-order" className="hover:text-gray-600">Track Your Order</Link></li>
           </ul>
         </nav>
@@ -143,7 +152,7 @@ const Header = () => {
               <li><Link to="/" onClick={() => setIsMenuOpen(false)}>Home</Link></li>
               {categories.map((cat) => (
                 <li key={cat.name}>
-                  <Link to={`/category/${cat.name}`} onClick={() => setIsMenuOpen(false)}>
+                  <Link to={`/category/${encodeURIComponent(cat.name)}`} onClick={() => setIsMenuOpen(false)}>
                     {cat.name}
                   </Link>
                 </li>
@@ -152,6 +161,9 @@ const Header = () => {
               <li><Link to="/festival-offers" onClick={() => setIsMenuOpen(false)}>Festival Offers</Link></li>
               <li><Link to="/contact" onClick={() => setIsMenuOpen(false)}>Contact</Link></li>
               <li><Link to="/track-order" onClick={() => setIsMenuOpen(false)}>Track Your Order</Link></li>
+              {isAuthenticated && user?.role === 'admin' && (
+                <li><Link to="/admin/dashboard" onClick={() => setIsMenuOpen(false)} className="font-semibold text-black">Admin</Link></li>
+              )}
               {!isAuthenticated && (
                 <li><Link to="/login" onClick={() => setIsMenuOpen(false)}>Sign In</Link></li>
               )}

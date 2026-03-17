@@ -1,9 +1,23 @@
 import Product from '../models/Product.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Helper function to normalize category names
+const normalizeCategory = (category) => {
+  if (!category) return category;
+  // Normalize Pant/Track variations
+  if (category === 'Pant / Track' || category === 'Pant/Track') {
+    return 'Pant/Track';
+  }
+  return category;
+};
 
 export const getProducts = async (req, res) => {
   try {
     const {
       category,
+      subcategory,
       featured,
       newArrival,
       backInStock,
@@ -14,9 +28,15 @@ export const getProducts = async (req, res) => {
       limit = 12,
     } = req.query;
 
+    // Debug logging
+    console.log('API Request - Original category:', category);
+    const normalizedCategory = normalizeCategory(category);
+    console.log('API Request - Normalized category:', normalizedCategory);
+
     const query = {};
 
-    if (category) query.category = category;
+    if (category) query.category = normalizedCategory;
+    if (subcategory) query.subcategory = subcategory;
     if (featured === 'true') query.featured = true;
     if (newArrival === 'true') query.newArrival = true;
     if (backInStock === 'true') query.backInStock = true;
@@ -93,6 +113,11 @@ export const createProduct = async (req, res) => {
   try {
     const productData = { ...req.body };
     
+    // Normalize category name
+    if (productData.category) {
+      productData.category = normalizeCategory(productData.category);
+    }
+    
     // Handle uploaded images
     if (req.files && req.files.length > 0) {
       productData.images = req.files.map(file => `/uploads/${file.filename}`);
@@ -103,12 +128,25 @@ export const createProduct = async (req, res) => {
         : [req.body.images];
     }
 
-    // Parse sizes and colors if they're strings
+    // Parse sizes, sizeStock and colors if they're strings
     if (typeof productData.sizes === 'string') {
-      productData.sizes = productData.sizes.split(',').map(s => s.trim());
+      productData.sizes = productData.sizes
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+    if (typeof productData.sizeStock === 'string') {
+      try {
+        productData.sizeStock = JSON.parse(productData.sizeStock);
+      } catch {
+        productData.sizeStock = [];
+      }
     }
     if (typeof productData.colors === 'string') {
-      productData.colors = productData.colors.split(',').map(c => c.trim());
+      productData.colors = productData.colors
+        .split(',')
+        .map(c => c.trim())
+        .filter(Boolean);
     }
 
     const product = await Product.create(productData);
@@ -140,12 +178,25 @@ export const updateProduct = async (req, res) => {
         : [req.body.images];
     }
 
-    // Parse sizes and colors if they're strings
+    // Parse sizes, sizeStock and colors if they're strings
     if (typeof productData.sizes === 'string') {
-      productData.sizes = productData.sizes.split(',').map(s => s.trim());
+      productData.sizes = productData.sizes
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+    if (typeof productData.sizeStock === 'string') {
+      try {
+        productData.sizeStock = JSON.parse(productData.sizeStock);
+      } catch {
+        productData.sizeStock = [];
+      }
     }
     if (typeof productData.colors === 'string') {
-      productData.colors = productData.colors.split(',').map(c => c.trim());
+      productData.colors = productData.colors
+        .split(',')
+        .map(c => c.trim())
+        .filter(Boolean);
     }
 
     const product = await Product.findByIdAndUpdate(
@@ -171,6 +222,35 @@ export const deleteProduct = async (req, res) => {
     } else {
       res.status(404).json({ message: 'Product not found' });
     }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Admin: delete all products and clear uploaded images
+export const clearAllProducts = async (req, res) => {
+  try {
+    // Delete all product documents
+    await Product.deleteMany({});
+
+    // Resolve uploads directory (same as in upload.js)
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const uploadsDir = path.join(__dirname, '../uploads');
+
+    if (fs.existsSync(uploadsDir)) {
+      const files = fs.readdirSync(uploadsDir);
+      for (const file of files) {
+        const filePath = path.join(uploadsDir, file);
+        try {
+          fs.unlinkSync(filePath);
+        } catch (err) {
+          console.error('Failed to delete file:', filePath, err);
+        }
+      }
+    }
+
+    res.json({ message: 'All products and uploaded images have been cleared.' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

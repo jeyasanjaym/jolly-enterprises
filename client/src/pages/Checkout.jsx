@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { CheckCircle, MapPin, CreditCard } from 'lucide-react'
+import { CheckCircle, MapPin, CreditCard, Download } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { getImageUrl } from '../utils/imageHelper'
@@ -15,6 +15,34 @@ const Checkout = () => {
   const [orderTotal, setOrderTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  
+  const downloadBill = async () => {
+    if (!orderId) return
+    
+    try {
+      // Get authentication token
+      const token = localStorage.getItem('token')
+      if (!token) {
+        alert('Please login to download bill')
+        return
+      }
+      
+      // Create download URL with token
+      const downloadUrl = `/api/orders/${orderId}/download-bill?token=${token}`
+      
+      // Create temporary link and trigger download
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = `bill-${orderId}.pdf`
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error('Error downloading bill:', error)
+      alert('Failed to download bill')
+    }
+  }
   
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -91,6 +119,13 @@ const Checkout = () => {
               className="btn-primary"
             >
               View My Orders
+            </button>
+            <button
+              onClick={downloadBill}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <Download size={16} />
+              Download Bill
             </button>
             <button
               onClick={() => navigate('/products')}

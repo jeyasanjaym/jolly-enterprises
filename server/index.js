@@ -9,9 +9,10 @@ import { fileURLToPath } from 'url';
 import productRoutes from './routes/productRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import cartRoutes from './routes/cartRoutes.js';
-import orderRoutes from './routes/orderRoutes.js';
+import orderRoutes, { downloadRouter } from './routes/orderRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/bills', express.static(path.join(__dirname, 'bills')));
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/clothing-store';
@@ -43,8 +45,10 @@ app.use('/api/products', productRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/orders', downloadRouter); // Download routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axios from 'axios'
-import { Plus, Edit, Trash2, Package, ShoppingCart, Users, DollarSign } from 'lucide-react'
+import { Plus, Edit, Trash2, Package, ShoppingCart, Users, DollarSign, FileText, BarChart3 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getImageUrl } from '../utils/imageHelper'
 
@@ -120,6 +120,41 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => setShowProductForm(true)}
+                className="btn-primary flex items-center justify-center gap-2"
+              >
+                <Plus size={16} />
+                Add Product
+              </button>
+              <Link
+                to="/admin/reports"
+                className="btn-secondary flex items-center justify-center gap-2 text-center"
+              >
+                <FileText size={16} />
+                Generate Reports
+              </Link>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-semibold mb-4">Reports & Analytics</h3>
+            <p className="text-gray-600 mb-4">Generate detailed reports for sales, orders, products, and customers.</p>
+            <Link
+              to="/admin/reports"
+              className="btn-primary w-full flex items-center justify-center gap-2"
+            >
+              <BarChart3 size={16} />
+              View Reports
+            </Link>
+          </div>
+        </div>
+
         {/* Products Section */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between mb-6">
@@ -217,9 +252,6 @@ const ProductForm = ({ product, onClose, onSuccess }) => {
     subcategory: product?.subcategory || '',
     price: product?.price || '',
     originalPrice: product?.originalPrice || '',
-    stock: product?.stock || 0,
-    sizes: product?.sizes?.join(', ') || '',
-    colors: product?.colors?.join(', ') || '',
     featured: product?.featured || false,
     newArrival: product?.newArrival || false,
     backInStock: product?.backInStock || false,
@@ -229,6 +261,32 @@ const ProductForm = ({ product, onClose, onSuccess }) => {
   const [existingImages, setExistingImages] = useState(product?.images || [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const sizeOptions = ['S', 'M', 'L', 'XL', 'XXL']
+  const initialSizeStock =
+    product?.sizeStock && product.sizeStock.length
+      ? sizeOptions.map((size) => {
+          const found = product.sizeStock.find((s) => s.size === size)
+          return { size, stock: found?.stock || 0 }
+        })
+      : sizeOptions.map((size) => ({ size, stock: 0 }))
+  const [sizeStock, setSizeStock] = useState(initialSizeStock)
+
+  const colorOptions = [
+    'Black',
+    'White',
+    'Grey',
+    'Red',
+    'Blue',
+    'Green',
+    'Yellow',
+    'Orange',
+    'Brown',
+    'Beige',
+    'Pink',
+    'Purple',
+  ]
+  const [selectedColors, setSelectedColors] = useState(product?.colors || [])
 
   const categories = [
     'T-Shirt',
@@ -241,11 +299,35 @@ const ProductForm = ({ product, onClose, onSuccess }) => {
     'Perfume',
   ]
 
+  // Subcategories map – MUST match Header.jsx dropdown values
+  const categorySubcategories = {
+    'T-Shirt': ['Five Sleeve T-Shirt', 'Full Sleeve T-Shirt', 'Short Sleeve T-Shirt', 'Foot Ball Jersey'],
+    'Pant / Track': ['Lycra Pant', 'Track Pant', 'Cargo Pant', 'Baggy Pant', 'Shorts'],
+    'Co-Ord Set': [],
+    'Shirt': ['Lycra Shirt', 'Cotton Shirt'],
+    'Hoodies': [],
+    'Shoes': ['Size 6', 'Size 7', 'Size 8', 'Size 9', 'Size 10', 'Size 11', 'Size 12'],
+    'Slipper': [],
+    'Perfume': [],
+  }
+
+  const subcategoryOptions = categorySubcategories[formData.category] || []
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
+    const updates = { [name]: type === 'checkbox' ? checked : value }
+
+    // When category changes, reset subcategory if it no longer matches
+    if (name === 'category') {
+      const newSubs = categorySubcategories[value] || []
+      if (!newSubs.includes(formData.subcategory)) {
+        updates.subcategory = ''
+      }
+    }
+
     setFormData({
       ...formData,
-      [name]: type === 'checkbox' ? checked : value,
+      ...updates,
     })
   }
 
@@ -264,11 +346,27 @@ const ProductForm = ({ product, onClose, onSuccess }) => {
 
     try {
       const formDataToSend = new FormData()
-      
+
+      // Aggregate size-wise stock
+      const activeSizeStock = sizeStock.filter((s) => s.stock > 0)
+      const totalStock = activeSizeStock.reduce((sum, s) => sum + Number(s.stock || 0), 0)
+      const sizes = activeSizeStock.map((s) => s.size)
+
+      // Colors from multi-select
+      const colorsString = selectedColors.join(', ')
+
+      const fields = {
+        ...formData,
+        stock: totalStock,
+        sizes: sizes.join(','),
+        sizeStock: JSON.stringify(activeSizeStock),
+        colors: colorsString,
+      }
+
       // Add form fields
-      Object.keys(formData).forEach((key) => {
-        if (key !== 'images') {
-          formDataToSend.append(key, formData[key])
+      Object.keys(fields).forEach((key) => {
+        if (fields[key] !== undefined && fields[key] !== null) {
+          formDataToSend.append(key, fields[key])
         }
       })
 
@@ -353,13 +451,22 @@ const ProductForm = ({ product, onClose, onSuccess }) => {
 
               <div>
                 <label className="block text-sm font-medium mb-2">Subcategory</label>
-                <input
-                  type="text"
+                <select
                   name="subcategory"
                   value={formData.subcategory}
                   onChange={handleChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                />
+                >
+                  <option value="">— None —</option>
+                  {subcategoryOptions.map((sub) => (
+                    <option key={sub} value={sub}>
+                      {sub}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  This controls which navbar subcategory (e.g. Full Sleeve T-Shirt) this product appears under.
+                </p>
               </div>
 
               <div>
@@ -389,41 +496,63 @@ const ProductForm = ({ product, onClose, onSuccess }) => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Stock *</label>
-                <input
-                  type="number"
-                  name="stock"
-                  value={formData.stock}
-                  onChange={handleChange}
-                  required
-                  min="0"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                />
+              {/* Size-wise stock */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-2">
+                  Size-wise Stock (per size) *
+                </label>
+                <div className="grid grid-cols-5 gap-2">
+                  {sizeOptions.map((size, idx) => (
+                    <div key={size} className="flex flex-col">
+                      <span className="text-xs font-semibold mb-1">{size}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={sizeStock[idx].stock}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          setSizeStock((prev) =>
+                            prev.map((entry, i) =>
+                              i === idx ? { ...entry, stock: Number(value || 0) } : entry
+                            )
+                          )
+                        }}
+                        className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Example: S = 60, M = 78, L = 88, etc. Total stock will be calculated
+                  automatically.
+                </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Sizes (comma separated)</label>
-                <input
-                  type="text"
-                  name="sizes"
-                  value={formData.sizes}
-                  onChange={handleChange}
-                  placeholder="S, M, L, XL"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Colors (comma separated)</label>
-                <input
-                  type="text"
-                  name="colors"
-                  value={formData.colors}
-                  onChange={handleChange}
-                  placeholder="Red, Blue, Green"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                />
+              {/* Color selection */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-2">
+                  Colors (select one or more)
+                </label>
+                <select
+                  multiple
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md h-28"
+                  value={selectedColors}
+                  onChange={(e) => {
+                    const values = Array.from(e.target.selectedOptions).map(
+                      (opt) => opt.value
+                    )
+                    setSelectedColors(values)
+                  }}
+                >
+                  {colorOptions.map((color) => (
+                    <option key={color} value={color}>
+                      {color}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Hold Ctrl (Windows) or Command (Mac) to select multiple colors.
+                </p>
               </div>
             </div>
 
